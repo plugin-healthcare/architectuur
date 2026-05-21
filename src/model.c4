@@ -2,12 +2,37 @@ model {
     data-gebruiker = actor 'Data gebruiker' {
         description 'Een data gebruiker is een persoon die gezondheidsgegevens gebruikt voor onderzoek, innovatie of beleid.'
 
-        -> plugin.ph.plugin-ml 'ontwikkelt machine learning algoritmes met'
+        -> plugin.ph.plugin-ml 'maakt federatieve ML pipelines aan via PLUGIN-ML client'
         -> plugin.ph.vantage6-ui 'beheert federatieve samenwerking in'
     }
     data-houder = actor 'Data houder' {
         description 'Een data houder is een persoon of organisatie die gezondheidsgegevens beheert en beschikbaar stelt aan data gebruikers.'
+        -> epic 'registreert patiëntgegevens in'
+        -> hix 'registreert patiëntgegevens in'
+        -> epd-overig 'registreert patiëntgegevens in'
     }
+
+    epic = system 'Epic' {
+        description 'Elektronisch patiëntendossier (EPD) van Epic Systems. Biedt data aan via FHIR API.'
+        technology 'FHIR R4 API'
+    }
+    hix = system 'HiX' {
+        description 'Elektronisch patiëntendossier (EPD) van ChipSoft. Data extractie via queries.'
+        technology 'SQL / ChipSoft queries'
+    }
+    epd-overig = system 'Overig EPD / bronsysteem' {
+        description 'Andere bronsystemen waaruit gezondheidsgegevens geëxtraheerd kunnen worden.'
+        style {
+            color plugin-light-grey
+        }
+    }
+    pseudonimisatie = system 'Pseudonimisatie' {
+        description 'Optioneel extern systeem dat persoonsidentificerende gegevens vervangt door pseudoniemen voordat data het datastation bereikt.'
+        style {
+            color plugin-light-grey
+        }
+    }
+
     plugin = system 'PLUGIN' {
         description 'Een data space.'
         link ./model.c4#L8 'Model'
@@ -19,44 +44,30 @@ model {
                 description 'Applicatie die verantwoordelijk is voor het uitvoeren van federatieve berekeningen op de data van een data houder, inclusief het ontvangen van taken, uitvoeren van algoritmes en terugsturen van resultaten.'
             }
 
-            plugin-lake-ui = ui 'PLUGIN-Lake UI' {
-                description 'Web-applicatie waarmee datahouder inzicht krijgt in de status en logs van het datastation.'
+            plugin-lake-ui = container 'PLUGIN-Lake UI' {
+                description 'Streamlit dashboard container waarmee datahouder inzicht krijgt in de status en logs van het datastation.'
+                technology 'Streamlit container'
             }
 
-            dagster-ui = ui 'Dagster UI' {
-                description 'Applicatie die een interface biedt voor het ontwerpen, plannen en monitoren van data pipelines.'
+            dagster-ui = container 'Dagster UI' {
+                description 'Dagster web dashboard container voor het ontwerpen, plannen en monitoren van data pipelines.'
+                technology 'Dagster web UI container'
                 -> dagster-deamon 'stuurt opdrachten naar en ontvangt status updates van'
             }
             dagster-deamon = container 'Dagster Daemon' {
                     description 'Applicatie die verantwoordelijk is voor het uitvoeren van geplande taken en het monitoren van de status van data pipelines in Dagster.'
-            }
-            algoritme-container = container 'Algoritme container' {
-                description 'Component die machine learning algoritmes en modellen bevat die kunnen worden uitgevoerd op het datastation.'
-            }
-            plugin-lake = system 'PLUGIN-Lake' {
-                description 'Applicatie die lakehouse functionaliteit biedt voor het opslaan en beheren van grote hoeveelheden gestructureerde en ongestructureerde data.'
-                plugin-lake-api = component 'PLUGIN-Lake API' {
-                    description 'single gateway voor PLUGIN-Lake.'
-                    technology 'FastAPI, Python'
-                }
-                ducklake = component 'DuckLake' {
-                    description 'Open standaard voor lakehouse data opslag.'
-                    link https://ducklake.select/docs/stable/specification/introduction
-                    technology 'DuckDB'
-                    catalog = component 'Catalog database' {
-                        description 'DuckLake uses SQL tables and queries to define the catalog information (metadata, statistics, etc.). The DuckLake specification explains the schema and semantics of these.'
-                        technology 'PostgreSQL'
+                    dagster-ducklake-iomanager = component 'Dagster DuckLake IO manager' {
+                        description 'Python IO manager (code uit plugin-lake pakket) die geladen wordt door de Dagster daemon en data leest/schrijft naar PLUGIN-Lake via HTTPS/REST.'
+                        technology 'Python, gedistribueerd via plugin-lake package'
                     }
-                    data = component 'Data storage' {
-                        description 'DuckLake uses Parquet files to represent its tables. These files can be stored in object storage (blob storage), block storage or file storage.'
-                        technology 'S3-compatible storage'
-                    }
-                }
-                dagster-ducklake-iomanager = component 'Dagster DuckLake IO manager' {
-                    description 'Dagster extension for managing IO to DuckLake'
-                    technology 'Python'
-                    -> ducklake 'leest en schrijft (meta)data naar'
-                }
+            }
+            algoritme-container = container 'vantage6 Algorithm Container' {
+                description 'Generieke Docker container met vantage6 wrapper voor het uitvoeren van berekeningen op datastation data. Dient als basis template; specifieke algoritmes (zoals PLUGIN-ML) bouwen hierop voort.'
+                technology 'Docker, vantage6 wrapper, Python'
+            }
+            plugin-lake = container 'PLUGIN-Lake' {
+                description 'Single Docker container met FastAPI server. Gebruikt DuckLake (DuckDB + PostgreSQL catalog + S3 Parquet opslag) als lakehouse storage layer. Kan federatief communiceren met PLUGIN-Lake instanties op andere datastations en de Processing Hub via Nuts als middleware (native stream).'
+                technology 'FastAPI, Python, DuckDB, DuckLake'
             }
 
             nuts-node = container 'Nuts-node' {
@@ -108,19 +119,16 @@ model {
         vantage6-node -> algoritme-container 'zet op, configureert en stuurt resultaten door van'
         algoritme-container -> plugin-lake 'leest data van en schrijft tijdelijke resultaten naar'
         plugin-lake-ui -> plugin-lake 'interface voor inzage in orchestratie en data'
-        plugin-lake.plugin-lake-api -> dagster-deamon 'initeert taken en jobs voor'
-        dagster-deamon -> plugin-lake.dagster-ducklake-iomanager 'leest en schrijft data via'
+        plugin-lake -> dagster-deamon 'initieert taken en jobs via REST API'
+        dagster-deamon -> plugin-lake 'leest en schrijft data via DuckLake IO manager (HTTPS/REST)'
         }
         
         ph = system 'Processing Hub' {
             description 'Een federatieve data processing systeem dat voldoet aan de eisen van beveiligde verwerkingsomgeving (BVO).'
 
-            plugin-lake = system 'PLUGIN-Lake' {
-                description 'Applicatie die lakehouse functionaliteit biedt voor het opslaan en beheren van grote hoeveelheden gestructureerde en ongestructureerde data op de Processing Hub.'
-                plugin-lake-api = component 'PLUGIN-Lake API' {
-                    description 'single gateway voor PLUGIN-Lake.'
-                    technology 'FastAPI, Python'
-                }
+            plugin-lake = container 'PLUGIN-Lake' {
+                description 'Single Docker container met FastAPI server voor het opslaan en beheren van lakehouse data op de Processing Hub.'
+                technology 'FastAPI, Python'
             }
 
             nuts-node = container 'Nuts-node' {
@@ -142,8 +150,9 @@ model {
                 description 'Component waarin resultaten worden combineerd en geaggreeerd'
                 technology 'Python'
             }
-            vantage6-ui = ui 'vantage6 UI' {
-                description 'Webapplicatie waarmee data gebruikers federatieve berekeningen kunnen initiëren en beheren, en algoritmes kunnen bekijken.'
+            vantage6-ui = container 'vantage6 UI' {
+                description 'Docker container met de web UI voor federatieve berekeningen; wordt typisch via een browser tunnel of port-forward benaderd.'
+                technology 'Docker container, web UI via browser tunnel'
             }
 
             algoritme-register = container 'Algoritme register' {
@@ -151,7 +160,16 @@ model {
             }
 
             plugin-ml = container 'PLUGIN-ML' {
-                description 'Component die machine learning algoritmes en modellen bevat die kunnen worden gebruikt in federatieve berekeningen.'
+                description 'Federatief ML framework op de Processing Hub. Dispatcht training taken naar datastations via vantage6 en voert aggregatie uit op de Processing Hub.'
+                technology 'Python, PyTorch, Flower (Federated Learning)'
+                plugin-ml-client = component 'PLUGIN-ML client' {
+                    description 'Python client library waarmee data gebruikers ML pipelines definiëren en indienen bij de PLUGIN-ML service.'
+                    technology 'Python package'
+                }
+                plugin-ml-vantage6-container = component 'PLUGIN-ML vantage6 container' {
+                    description 'Vantage6 algorithm container gebaseerd op de generieke vantage6 template. Voert ML pipeline stappen uit: training op het datastation of aggregatie op de Processing Hub.'
+                    technology 'Docker, vantage6 wrapper, PyTorch, Flower'
+                }
             }
 
             plugin-analytics = container 'PLUGIN-Analytics' {
@@ -165,12 +183,12 @@ model {
                         color plugin-light-grey
                     }
                 }
-                -> plugin-lake.plugin-lake-api 'vraagt data en analyses aan via'
+                -> plugin-lake 'vraagt data en analyses aan via HTTPS/REST'
                 -> some-server 'wordt uitgevoerd via'
             }
 
             plugin-hub = container 'PLUGIN-Hub' {
-                description 'Component waarmee data vanuit datastations naar een centraal systeem kunnen worden doorgestuurd.'
+                description 'Container waarmee data vanuit datastations naar PLUGIN-Lake kunnen worden doorgestuurd.'
             }
 
             some-server = container 'Nader te bepalen server' {
@@ -189,14 +207,20 @@ model {
             vantage6-ui -> vantage6-server 'grafische interface voor beheren federatieve berekeningen'
             vantage6-server -> algoritme-register 'slaat goedgekeurde algoritmes op in'
             vantage6-server -> blob-storage 'maakt gebruik van'
-            plugin-ml -> vantage6-server 'wordt uitgevoerd via'
-            plugin-hub -> vantage6-server 'wordt uitgevoerd via'
+            plugin-ml -> vantage6-server 'dispatcht training taken (PLUGIN-ML vantage6 container) naar datastations en aggregatie taken naar PH'
+            plugin-hub -> plugin-lake 'verstuurt data en opdrachten via HTTPS/REST'
         }
 
 
         data-houder -> plugin.datastation 'maakt data beschikbaar via'
         data-gebruiker -> plugin.ph 'werkt voor secundair gebruik in/met'
-        plugin.ph.vantage6-server -> plugin.datastation.vantage6-node 'stuurt taken naar'
-        plugin.datastation.vantage6-node -> plugin.ph.vantage6-server 'stuurt resultaten terug naar'
+
+        // Stream 1: native PLUGIN-Lake federatie via Nuts als middleware
+        // (datastation-to-datastation peer-to-peer werkt op dezelfde manier maar kan niet als self-referentie gemodelleerd worden)
+        plugin.ph.plugin-lake -> plugin.datastation.plugin-lake 'federatief data-verzoek (native stream, via Nuts middleware) [HTTPS/REST]'
+
+        // Stream 2: federatieve berekeningen via vantage6
+        plugin.ph.vantage6-server -> plugin.datastation.vantage6-node 'stuurt taken naar (vantage6 stream)'
+        plugin.datastation.vantage6-node -> plugin.ph.vantage6-server 'stuurt resultaten terug naar (vantage6 stream)'
     }
 }
