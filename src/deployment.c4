@@ -1,0 +1,116 @@
+deployment {
+
+    // === DATASTATION ===
+    organisatie datahouder-org 'Organisatie Datahouder' {
+        description 'Zorginstelling of onderzoeksorganisatie die gezondheidsgegevens beheert.'
+
+        vm datastation-linux-docker 'Linux VM (Datastation - Docker)' {
+            description 'Single-node deployment: alle Datastation containers draaien op deze ene Linux VM binnen de infrastructuur van de datahouder.'
+            technology 'Linux VM met Docker Engine (single node)'
+
+            instanceOf plugin.datastation.plugin-lake
+            instanceOf plugin.datastation.nuts-node
+            instanceOf plugin.datastation.dagster-deamon
+            instanceOf plugin.datastation.vantage6-node
+            instanceOf plugin.datastation.algoritme-container
+            instanceOf plugin.datastation.plugin-lake-ui
+            instanceOf plugin.datastation.dagster-ui
+
+            postgres-ds-docker = database 'PostgreSQL' {
+                description 'Gedeelde database voor Dagster metadata en DuckLake catalog.'
+                technology 'PostgreSQL'
+            }
+
+            // monitoring-ds = container 'Monitoring' {
+            //     description 'Optionele container voor logging en monitoring.'
+            //     technology 'Prometheus / Grafana'
+            //     style {
+            //         color plugin-light-grey
+            //     }
+            // }
+        }
+
+        cluster datastation-k8s 'Kubernetes cluster (Datastation)' {
+            description 'Kubernetes deployment optie voor Datastation.'
+            technology 'Kubernetes (multi-node)'
+
+            vm datastation-k8s-worker-1 'Worker node 1' {
+                technology 'Linux node'
+
+                cluster datastation-namespace 'Namespace: datastation' {
+                    technology 'Kubernetes namespace'
+
+                    instanceOf plugin.datastation.plugin-lake
+                    instanceOf plugin.datastation.nuts-node
+                    instanceOf plugin.datastation.dagster-deamon
+                    instanceOf plugin.datastation.vantage6-node
+                    instanceOf plugin.datastation.algoritme-container
+                    instanceOf plugin.datastation.plugin-lake-ui
+                    instanceOf plugin.datastation.dagster-ui
+
+                    postgres-ds-k8s = database 'PostgreSQL' {
+                        description 'Gedeelde database voor Dagster metadata en DuckLake catalog.'
+                        technology 'PostgreSQL (managed service of StatefulSet)'
+                    }
+                }
+            }
+        }
+    }
+
+    // === PROCESSING HUB ===
+    organisatie ph-org 'Organisatie Processing Hub' {
+        description 'Organisatie die de Processing Hub beheert. Dit kan een mediair of knooppuntbeheerder zijn.'
+
+        vm ph-linux-docker 'Linux VM (Processing Hub - Docker)' {
+            description 'Single-node deployment: alle Processing Hub containers draaien op deze ene Linux VM.'
+            technology 'Linux VM met Docker Engine (single node)'
+
+            instanceOf plugin.ph.plugin-lake
+            instanceOf plugin.ph.nuts-node
+            instanceOf plugin.ph.vantage6-server
+            instanceOf plugin.ph.plugin-ml
+            instanceOf plugin.ph.plugin-analytics
+            instanceOf plugin.ph.plugin-hub
+            instanceOf plugin.ph.vantage6-ui
+
+            postgres-ph-docker = database 'PostgreSQL' {
+                description 'Gedeelde database voor Dagster metadata en DuckLake catalog.'
+                technology 'PostgreSQL'
+            }
+
+            // monitoring-ph = container 'Monitoring' {
+            //     description 'Optionele container voor logging en monitoring.'
+            //     technology 'Prometheus / Grafana'
+            //     style {
+            //         color plugin-light-grey
+            //     }
+            // }
+        }
+
+        cluster ph-k8s 'Kubernetes cluster (Processing Hub)' {
+            description 'Kubernetes deployment optie voor Processing Hub.'
+            technology 'Kubernetes (multi-node)'
+
+            vm ph-k8s-worker-1 'Worker node 1' {
+                technology 'Linux node'
+
+                cluster ph-namespace 'Namespace: processing-hub' {
+                    technology 'Kubernetes namespace'
+
+                    instanceOf plugin.ph.plugin-lake
+                    instanceOf plugin.ph.nuts-node
+                    instanceOf plugin.ph.vantage6-server
+                    instanceOf plugin.ph.plugin-ml
+                    instanceOf plugin.ph.plugin-analytics
+                    instanceOf plugin.ph.plugin-hub
+                    instanceOf plugin.ph.vantage6-ui
+
+                    postgres-ph-k8s = database 'PostgreSQL' {
+                        description 'Gedeelde database voor Dagster metadata en DuckLake catalog.'
+                        technology 'PostgreSQL (managed service of StatefulSet)'
+                    }
+                }
+            }
+        }
+    }
+}

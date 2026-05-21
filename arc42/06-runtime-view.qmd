@@ -2,9 +2,14 @@
 
 ## Data beschikbaar maken
 
-- *\<voeg een runtime diagram of een tekstuele beschrijving van het scenario toe\>*
+```{=html}
+<likec4-view
+   view-id="data-aanlevering"
+   dynamic-variant="sequence">
+</likec4-view>
+```
 
-- *\<voeg een beschrijving toe van bijzondere aspecten van de interactie tussen de instanties van de bouwstenen die in dit diagram worden weergegeven\>*
+Voor het klaarzetten en aanleveren van data bij het datastation wordt data geëxtraheerd uit het bronsysteem (EPD) van de datahouder. Dit kan via een FHIR API (zoals bij Epic), via queries (zoals bij HiX van ChipSoft), of via een andere connector. Optioneel vindt er een pseudonimisatie slag plaats voordat de data het datastation bereikt. PLUGIN-Lake ontvangt de data via een API, extractie (pull), of via een lokale volume mount. Vervolgens is de data beschikbaar voor gebruik door vantage6 algoritme containers of PLUGIN-Analytics.
 
 ## Gefedereerd leren
 
@@ -22,11 +27,11 @@ Voor gefedereerd leren maakt PLUGIN gebruik van vantage6. Het gefedereerd leren 
   - Omschrijving
 
 - - **1. Authenticatie**
-  - De onderzoeker start het proces door te authenticeren bij de centrale Vantage6-server.
+  - De data gebruiker start het proces via de PLUGIN-ML client. De PLUGIN-ML client authenticeert namens de data gebruiker bij de vantage6 server.
 
 - - **2. Taak specificatie**
-  - Na succesvolle authenticatie definieert de onderzoeker een taak. Hierbij wordt opgegeven:
-    *   Welk algoritme (Docker-image) gebruikt moet worden.
+  - Na succesvolle authenticatie definieert de data gebruiker via de PLUGIN-ML client een ML pipeline taak. Hierbij wordt opgegeven:
+    *   Welk algoritme gebruikt moet worden (bij PLUGIN-ML: de PLUGIN-ML vantage6 container, een Docker-image gebaseerd op de generieke vantage6 algorithm container template).
     *   Specifieke inputparameters voor de analyse.
     *   Het aantal iteraties (indien van toepassing, voor machine learning).
     *   De identiteit van de *Centrale Aggregatie Server* (CAS), de node die verantwoordelijk is voor het aggregeren van resultaten.
@@ -44,7 +49,7 @@ Voor gefedereerd leren maakt PLUGIN gebruik van vantage6. Het gefedereerd leren 
   - Na elke trainingscyclus of analysestap stuurt het algoritme op het datastation de lokale resultaten (bijv. modelgewichten of statistische coëfficiënten) naar de CAS. De brongegevens verlaten het datastation niet.
 
 - - **7. Verificatie en aggregatie**
-  - De SAS verifieert de resultaten, extraheert de metadata van de resultaten en voegt de resultaten van alle datastations samen tot een geaggregeerd tussenmodel. Dit voltooit één iteratie.
+  - De CAS verifieert de resultaten, extraheert de metadata van de resultaten en voegt de resultaten van alle datastations samen tot een geaggregeerd tussenmodel. Dit voltooit één iteratie.
 
 - - **8. Vervolg-iteraties**
   - Voor vervolgstappen vragen de datastations de geaggregeerde resultaten van de vorige ronde op bij de CAS om hun lokale modellen verder te trainen. Deze cyclus herhaalt zich totdat het model convergeert of het gewenste aantal iteraties is bereikt.
@@ -70,6 +75,7 @@ TO DO: add reference to draft paper.
 </likec4-view>
 ```
 
+Voor federatieve analytics maakt PLUGIN gebruik van PLUGIN-Lake en PLUGIN-Analytics. De data gebruiker logt in via PLUGIN-Analytics en vraagt een analyse of data op. PLUGIN-Lake valideert de credentials via het Nuts profiel en stuurt vervolgens federatieve verzoeken naar de datastations. Elk datastation valideert de credentials van de Processing Hub via hun eigen Nuts-node. Na succesvolle validatie worden de data of query resultaten teruggestuurd naar de Processing Hub, waar PLUGIN-Lake de resultaten aggregeert en een statistische integriteitscontrole uitvoert. Het eindresultaat wordt teruggegeven aan de gebruiker via PLUGIN-Analytics.
 De federated analytics functionaliteit is op dit moment (mei 2026) in ontwikkeling. Belangrijk uitgangspunt is dat [NUTS](https://nuts-node.readthedocs.io/en/stable/#) als framework wordt gebruikt voor decentrale authorisatie en authenticatie. Het architectuur zal op basis van de ervaringen van de eerste implementatie worden gereviewed en waar nodig aangepast c.q. verbeterd. Zodra de NUTS integratie in PLUGIN is gerealiseerd, zal de usecase voor data aanlevering gebruik maken van de functionaliteit van gefedereerde analyse, in plaats van de huidige implementatie gebaseerd op gefedereerd leren.
 
 ::: {.list-table}
