@@ -64,5 +64,36 @@ views {
 
     include plugin.ph, plugin.datastation
   }
+
+  dynamic view data-aanlevering {
+    title 'Data klaarzetten en aanlevering bij Datastation'
+
+    // Data extractie uit bronsysteem
+    data-houder -> epic 'Registreert patiëntgegevens'
+    epic -> pseudonimisatie 'Extractie via FHIR API'
+    hix -> pseudonimisatie 'Extractie via queries'
+    epd-overig -> pseudonimisatie 'Extractie via connector'
+
+    // Pseudonimisatie (optioneel) en aanlevering aan datastation
+    pseudonimisatie -> plugin.datastation.plugin-lake 'Gepseudonimiseerde data aanlevering (API, extractie of volume mount)'
+
+    // Data beschikbaar voor gebruik
+    plugin.datastation.plugin-lake -> plugin.datastation.algoritme-container 'Data beschikbaar voor vantage6 algoritmes'
+    plugin.datastation.plugin-lake -> plugin.ph.plugin-analytics 'Data beschikbaar voor analytics'
+
+    include epic, hix, epd-overig, pseudonimisatie, plugin.datastation, plugin.ph
+  }
+
+  deployment view deploy-docker-linux {
+    title 'Deployment Docker op single Linux server'
+    include datahouder-org.datastation-linux-docker.**
+    include ph-org.ph-linux-docker.**
+  }
+
+  deployment view deploy-kubernetes {
+    title 'Deployment Kubernetes cluster'
+    include datahouder-org.datastation-k8s.**
+    include ph-org.ph-k8s.**
+  }
  
 }

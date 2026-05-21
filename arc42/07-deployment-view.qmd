@@ -1,33 +1,75 @@
 # Deployment View {#sec-deployment-view}
 
-## Infrastructuur Niveau 1 {#_infrastructuur_niveau_1}
+PLUGIN wordt uitgerold in twee typen omgevingen: het **Datastation** bij de datahouder en de **Processing Hub** bij een knooppuntbeheerder of mediair. Er zijn twee deployment varianten: een eenvoudige single-node **Docker** setup op een Linux VM, en een **Kubernetes** setup voor productieomgevingen die schaalbaarheid en hoge beschikbaarheid vereisen.
 
-***\<Overzichts Diagram\>***
+## Docker / Linux VM {#_deployment_docker}
 
-Motivatie
+In de Docker variant draait elke omgeving op een enkele Linux VM met Docker Engine. Dit is de eenvoudigste deployment optie, geschikt voor pilotomgevingen of kleinschalige productiedeployments.
 
-:   *\<uitleg in tekstuele vorm\>*
+```{=html}
+<likec4-view view-id="deploy-docker-linux"></likec4-view>
+```
 
-Kwaliteit en/of Performance Eigenschappen
+## Kubernetes {#_deployment_kubernetes}
 
-:   *\<uitleg in tekstuele vorm\>*
+In de Kubernetes variant worden de containers als pods uitgerold in een Kubernetes namespace op een worker node. Deze variant biedt meer flexibiliteit voor schaalbaarheid, rolling updates en beheer.
 
-Mapping van Bouwstenen naar Infrastructuur
+```{=html}
+<likec4-view view-id="deploy-kubernetes"></likec4-view>
+```
 
-:   *\<beschrijving van de mapping\>*
+## Componenten per omgeving {#_deployment_componenten}
 
-## Infrastructuur Niveau 2 {#_infrastructuur_niveau_2}
+### Datastation
 
-### *\<Infrastructuur Element 1\>* {#_infrastructuur_element_1}
+Het datastation draait binnen de infrastructuur van de datahouder (zorginstelling of onderzoeksorganisatie). De container-omgeving bevat:
 
-*\<diagram + uitleg\>*
+::: {.list-table}
+- - Component
+  - Rol
 
-### *\<Infrastructuur Element 2\>* {#_infrastructuur_element_2}
+- - **PLUGIN-Lake**
+  - Lakehouse voor opslag en beheer van gestructureerde en ongestructureerde data.
 
-*\<diagram + uitleg\>*
+- - **Nuts-node**
+  - Sidecar container voor autorisatie en authenticatie bovenop PLUGIN-Lake.
 
-...
+- - **Dagster Daemon**
+  - Uitvoeren van geplande taken en monitoren van data pipelines.
 
-### *\<Infrastructuur Element n\>* {#_infrastructuur_element_n}
+- - **PostgreSQL**
+  - Gedeelde database voor Dagster metadata en DuckLake catalog.
 
-*\<diagram + uitleg\>*
+- - **vantage6 node**
+  - Uitvoeren van federatieve berekeningen op lokale data.
+
+- - **vantage6 Algorithm Container**
+  - Generieke Docker container met vantage6 wrapper voor het uitvoeren van berekeningen op lokale datastation data. Dient als basis template; specifieke algoritmes (zoals PLUGIN-ML) bouwen hierop voort.
+
+- - **PLUGIN-Lake UI / Dagster UI**
+  - Web-interfaces voor monitoring en beheer.
+:::
+
+### Processing Hub
+
+De Processing Hub wordt beheerd door een knooppuntbeheerder of mediair. Deze omgeving coördineert federatieve berekeningen en analytics over meerdere datastations. De container-omgeving bevat dezelfde basiscomponenten als het datastation (PLUGIN-Lake, Nuts-node, PostgreSQL), aangevuld met:
+
+::: {.list-table}
+- - Component
+  - Rol
+
+- - **vantage6 server**
+  - Coördinatie van federatieve berekeningen, taakdistributie en resultaatverzameling.
+
+- - **PLUGIN-ML**
+  - Federatief ML framework. Dispatcht training taken naar datastations via vantage6 en voert aggregatie uit op de Processing Hub.
+
+- - **PLUGIN-Analytics**
+  - Analytische tools en visualisaties voor resultaten van federatieve berekeningen.
+
+- - **PLUGIN-Hub**
+  - Doorsturen van data vanuit datastations naar PLUGIN-Lake.
+
+- - **vantage6 UI**
+  - Webapplicatie voor het beheren van federatieve berekeningen.
+:::

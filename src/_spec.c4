@@ -60,4 +60,27 @@ specification {
             opacity 10%
         }
     }
+
+    deploymentNode organisatie {
+        style {
+            color plugin-dark-blue
+        }
+    }
+    deploymentNode vm {
+        style {
+            color plugin-teal
+        }
+    }
+    deploymentNode cluster {
+        style {
+            color plugin-light-blue
+            icon tech:docker
+        }
+    }
+    deploymentNode database {
+        style {
+            color gray
+            shape storage
+        }
+    }
 }
