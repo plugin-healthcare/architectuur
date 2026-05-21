@@ -23,8 +23,8 @@ Voor het klaarzetten en aanleveren van data bij het datastation wordt data geëx
 Voor gefedereerd leren maakt PLUGIN gebruik van vantage6. Het gefedereerd leren van een algoritme omvat een reeks gecoördineerde stappen tussen de data gebruiker, de centrale server en de datastations. Dit proces is ontworpen om de analyse uit te voeren zonder dat de brongegevens de lokale omgeving van het datastation verlaten. Hieronder volgt een detailleerde beschrijving wat elk van de applicatiecomponenten hierin doen.
 
 ::: {.list-table}
-- - stap
-  - omschrijving
+- - Stap
+  - Omschrijving
 
 - - **1. Authenticatie**
   - De data gebruiker start het proces via de PLUGIN-ML client. De PLUGIN-ML client authenticeert namens de data gebruiker bij de vantage6 server.
@@ -76,3 +76,44 @@ TO DO: add reference to draft paper.
 ```
 
 Voor federatieve analytics maakt PLUGIN gebruik van PLUGIN-Lake en PLUGIN-Analytics. De data gebruiker logt in via PLUGIN-Analytics en vraagt een analyse of data op. PLUGIN-Lake valideert de credentials via het Nuts profiel en stuurt vervolgens federatieve verzoeken naar de datastations. Elk datastation valideert de credentials van de Processing Hub via hun eigen Nuts-node. Na succesvolle validatie worden de data of query resultaten teruggestuurd naar de Processing Hub, waar PLUGIN-Lake de resultaten aggregeert en een statistische integriteitscontrole uitvoert. Het eindresultaat wordt teruggegeven aan de gebruiker via PLUGIN-Analytics.
+De federated analytics functionaliteit is op dit moment (mei 2026) in ontwikkeling. Belangrijk uitgangspunt is dat [NUTS](https://nuts-node.readthedocs.io/en/stable/#) als framework wordt gebruikt voor decentrale authorisatie en authenticatie. Het architectuur zal op basis van de ervaringen van de eerste implementatie worden gereviewed en waar nodig aangepast c.q. verbeterd. Zodra de NUTS integratie in PLUGIN is gerealiseerd, zal de usecase voor data aanlevering gebruik maken van de functionaliteit van gefedereerde analyse, in plaats van de huidige implementatie gebaseerd op gefedereerd leren.
+
+::: {.list-table}
+
+- - Stap
+  - Omschrijving
+
+- - **1. Inloggen**
+  - ...
+
+ - - **2. Data of analyse aanvraag**
+   - ...
+
+- - **3. Validatie credentials via Nuts profiel**
+  - ...
+
+- - **4 .Credentials geldig**
+  - ...
+
+- - **5. Federatief verzoek met Nuts credentials**
+  - ...
+
+- - **6. Validatie credentials Processing Hub**
+  - ...
+
+- - **7. Credentials geldig**
+  - ...
+
+- - **8. Terugkoppelen data of query resultaten**
+  - ...
+
+- - **9. Aggregatie en statistische integriteitscontrole**
+  - ...
+
+- - **10. Geaggregeerd resultaat**
+  - ...
+
+- - **11. Resultaat inzien**
+  - ...
+
+:::
