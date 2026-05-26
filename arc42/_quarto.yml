@@ -9,7 +9,7 @@ book:
     - Madou Derksen
     - Yannick Vinkesteijn
     - Marlou van der Sande
-  date: "01/04/2026"
+  date: "01/06/2026"
   chapters:
     - index.qmd
     - 01-inleiding-doelen.qmd
