@@ -1,15 +1,75 @@
-# Cross-cutting Concepten {#section-concepts}
+# Cross-cutting Concepten
 
-## *\<Concept 1\>* {#_concept_1}
+## Software-defined assets, lakehouse, data producten en data contracten
 
-*\<uitleg\>*
+Nagenoeg alle dataplatformen gebruiken een vorm van orchestratie. Terwijl eerste generatie orchestratie software taakgericht is, zien we dat moderne dataplatformen asset-gerichte orkestratie toepassen. Het concept van *software-defined assets* (SDA) is belangrijk in het ontwerp van PLUGIN. De praktische en conceptuele waarde van SDAs binnen een modern, gelaagd en federatief datalandschap worden hieronder toegelicht.
 
-## *\<Concept 2\>* {#_concept_2}
+### Concept van *software-defined assets*
 
-*\<uitleg\>*
+Een software-defined asset is een declaratieve beschrijving in code van een gewenst fysiek data-object, inclusief de bijbehorende herkomst (*lineage*) en de transformatielogica:
 
-...
+- **Declaratieve definitie van workflow:** In plaats van handmatig taken aan elkaar te knopen, declareert de ontwikkelaar welk data-object moet bestaan. De orkestrator (oorspronkelijk gepionierd door Dagster) berekent via *state reconciliation* zelf welke berekeningen noodzakelijk zijn op basis van de status en versheid van de upstream data.
+- **Expliciete Lineage:** De afhankelijkheden tussen datasets worden pre-runtime en direct in de code vastgelegd. Dit maakt data-lineage een inherent onderdeel van het ontwikkelproces, in plaats van een documentatietaak achteraf.
+- **Omgevingsagnostisch:** De logische definitie van het asset is losgekoppeld van de fysieke executieomgeving. Dezelfde code kan zonder aanpassingen lokaal (bijvoorbeeld met DuckDB) of in productie (bijvoorbeeld op een grootschalig Lakehouse) draaien.
+### SDAs in de zones van een lakehouse
 
-## *\<Concept n\>* {#_concept_n}
+Een modern lakehouse platform (zie [Schneider et al. (2024)](https://link.springer.com/article/10.1007/s42979-024-02737-0) voor een uitgebreide review en uitleg) combineert rapportage, OLAP en advanced analytics op hetzelfde systeem. Het concept van SDA wordt daarin expliciet toegepast in de zones die worden gebruikt in het lakehouse (ook wel de medallion-architectuur genoemd):
 
-*\<uitleg\>*
+- **Bron zone (ingeladen data):** Ingestie-SDAs leggen ruwe, onverwerkte data vast (vaak *append-only*) en registreren direct de invoermetadata (zoals bestandsgrootte of streaming-offsets) in de orkestratie-omgeving.
+- **Zilver zone (geharmoniseerde data):** Transformatie-SDAs harmoniseren en normaliseren de data naar open, transactionele formaten zoals Apache Iceberg. Dankzij de transactionele metadata-laag van het lakehouse vinden deze transformaties atomair (ACID-compliant) plaats.
+- **Goud zone (geuniformeerde data):** Analytische SDAs combineren Zilver-assets tot geuniformeerde data die direct klaar zijn voor rapportage.modelleren als SDAs, is de kans op foutne lager en kunnen deze makkelijker worden getraceerd en opgelost.
+
+### SDAs als basis voor data producten
+
+Binnen de context van data spaces is een **Data Product** gedefinieerd als de transactie-eenheid waarmee data veilig tussen onafhankelijke partijen wordt uitgewisseld. De CEN CENELEC Trusted Data Transactions-werkgroep definieert een data product als een pakket van data, metadata en bijbehorende licentievoorwaarden. SDAs kunnen worden gebruikt als technische drager c.q. implementatie van een data product: daar waar data spaces de organisatorische, juridische en semantische eisen van het product definieert, vormt de SDA de feitelijke code-enforced implementatie binnen de datapijplijn. Daarbij omvat het concept van SDA ook de metadata en FAIR principes die nodig zijn voor het realiseren vand data producten (in sectie 8.2 hieronder worden de relevante standaarden en protocollen beschreven).
+
+### Datacontracten als uitvoerbare code
+
+Een datacontract is een formele, versiebeheerde overeenkomst tussen producent en consument over de structuur, kwaliteit en SLA's (zoals versheid) van data. SDAs vertalen deze passieve afspraken naar actieve handhaving via het "Asset Check"-ontwerppatroon :
+
+- **Directe controle:** Na de fysieke materialisatie van een asset voert de orkestrator direct de in de code gedefinieerde datacontract-controles uit (zoals schema-validatie en null-waarde-controles).
+- **Actieve blokkering:** Indien een controle faalt, treedt het contract in werking. De orkestrator blokkeert downstream-transificaties, plaatst data in quarantaine of verstuurt direct waarschuwingen, waardoor de integriteit van de Gold-zone gewaarborgd blijft.
+
+De inzet van SDAs zorgt ervoor dat datacontracten geen statische documenten zijn, maar een integraal en geautomatiseerd onderdeel vormen van de operationele dataverwerking.
+
+## Standaarden, harmonisering en protocollen
+
+Het gebruik van standaarden is een belangrijk conceptueel principe binnen de architectuur van PLUGIN. De Data Spaces Support Centre (DSSC) definieert in de [DSSC Blueprint 3.0](https://blueprint.dssc.eu/?pane=technical&intro=cross-data-space-interoperability-considerations-in-data-081093&technical=building-on-top-of-foundational-standards#BuildingonTopofFoundationalStandards-3.ThreeKeyTechnicalStandards) wat deze standaarden zijn. Daarbij wordt een onderscheid gemaakt tussen drie niveaus:
+
+* **Universele standaarden** zijn onderliggenden specificaties die onafhankelijk van de sectorale context van toepassing zijn voor identificatie, metadata en beleid;
+* **Geharmoniseerde standaarden** zijn wettelijk verplichte profielen die door de Europese Commissie worden opgelegd ter naleving van de Data Act;
+* **Protocollen** beschrijven de technische interacties die bepalen hoe de universele standaarden in samenhang met elkaar functioneren om transacties te faciliteren.
+
+
+### Relevante universele W3C standaarden
+
+1. **Verifiable Credentials (W3C VC):** Deze specificatie maakt het mogelijk om digitale kenmerken en autorisaties (credentials) op een cryptografisch veilige en fraudebestendige (*tamper-evident*) wijze uit te wisselen en te verifiëren, zonder afhankelijk te zijn van een centrale autoriteit. De standaard ondersteunt *selective disclosure* (het uitsluitend delen van noodzakelijke attributen ter bescherming van de privacy). Binnen data spaces worden VCs ingezet voor de gedecentraliseerde identificatie van participanten en voor *attestations* (bewijzen dat een partij of specifieke API-dienst voldoet aan de gestelde governance- en conformiteitseisen).
+2. **Data Catalog Vocabulary (W3C DCAT v3):** Een gestandaardiseerd vocabulaire dat een uniform raamwerk biedt voor het beschrijven van datasets, distributies en dataniveaus binnen catalogi. DCAT v3 waarborgt dat data-aanbod consistent vindbaar, indexeerbaar en doorzoekbaar is via federatieve netwerken. De standaard is inherent uitbreidbaar (*extensible*) om sector- of domeinspecifieke metadata (zoals klinische profielen) te kunnen accommoderen.
+3. **Open Digital Rights Language (W3C ODRL):** Een formele, machineleesbare taal voor het uitdrukken van beleidsregels (*policies*). ODRL stelt datahouders in staat om expliciet te definiëren wat is toegestaan (*permissions*), wat verboden is (*prohibitions*) en welke verplichtingen (*obligations*) of randvoorwaarden (zoals temporele of geografische restricties) gelden voor de toegang tot en het secundaire gebruik van data.
+
+### Harmonisering van standaarden voor Data Act-compliance
+
+Krachtens artikel 33 van de Europese Data Act zal de Europese Commissie dwingende, geharmoniseerde standaarden opleggen om de interoperabiliteit tussen data spaces wettelijk te borgen. Deze wetgevingsharmonisatie zal naar verwachting resulteren in gestandaardiseerde profielen die bovenop de bestaand universele W3C standaarden worden gebouwd.
+
+Deze geharmoniseerde standaarden zullen strikte eisen stellen aan de beschrijving van de payload (datasetinhoud, datakwaliteit, onzekerheidsmarges en licenties), de onderliggende datastructuren en vocabulaires, en de technische interfaces (APIs) inclusief hun bijbehorende kwaliteits- en gebruiksvoorwaarden (*Quality of Service*). Tevens wordt ingezet op de interoperabiliteit van instrumenten voor geautomatiseerde contractafhandeling, zoals smart contracts. De formele uitwerking hiervan is momenteel belegd bij de Europese normalisatie-instellingen CEN/CENELEC (JTC 25) en ETSI.
+
+
+### Protocollen
+
+Standaarden alleen zijn onvoldoende voor runtime-interactie; er zijn protocollen vereist die specificeren hoe deze componenten met elkaar interacteren. Verschillende initiatieven convergeren momenteel naar een aantal leidende protocollen:
+
+* **Dataspace Protocol (DSP):** Dit protocol, ontwikkeld onder regie van de International Data Spaces Association (IDSA) en ingebracht bij ISO en de Eclipse Foundation, formaliseert de generieke interactie. Het specificeert hoe datasets als DCAT-catalogi worden gepubliceerd, hoe gebruiksrestricties syntactisch via ODRL-policies worden overgedragen en elektronisch onderhandeld (*contract negotiation*), en hoe de datatransmissie via *Transfer Process Protocols* wordt beheerd. De daadwerkelijke payload-uitwisseling blijft hierbij gescheiden en data space-specifiek.
+* **Protocollen voor Credential-levenscyclusbeheer:** Voor het veilig uitgeven en presenteren van Verifiable Credentials worden primair twee opkomende standaarden onderscheiden:
+  * *OpenID for Verifiable Credentials (OID4VC):* Gestandaardiseerd door de OpenID Foundation en de hoeksteen van het Europese EUDI Wallet-raamwerk (conform eIDAS2). Het omvat specifieke API-mechanismen voor uitgifte (*OID4VCI*), presentatie (*OID4VP*) en het gebruik van zelfbeheerde identiteitsproviders (*SIOPv2*).
+  * *Eclipse Decentralized Claims Protocol (DCP):* Een protocol dat zich specifiek richt op het privacyvriendelijk overdragen van organisatie-identiteiten en het decentraal vaststellen van de vertrouwensstatus (*trust*) tussen participanten binnen geautomatiseerde netwerken.
+
+
+Binnen de Europese open-sourcegemeenschap wordt tevens gewerkt aan aanvullende profielen, zoals het *Eclipse Conformity Assessment Policy and Credential Profile* (gedreven vanuit Gaia-X) en het *Eclipse Data Rights Policies Profile* (geïnitieerd door iSHARE), om conformiteitsbeoordelingen binnen trust-raamwerken verder te automatiseren.
+
+### Keuze voor Nuts
+
+Binnen het Nederlandse werkveld van decentrale data-uitwisseling in zorg, positioneert de Nuts-infrastructuur ([versie 1 specificaties](https://nuts-foundation.gitbook.io/v1)) zich als de meest volwassen en direct toepasbare implementatie van de bovengenoemde standaarden en protocollen. Waar veel Europese data space-initiatieven zich momenteel nog in een conceptuele fase bevinden, biedt Nuts reeds een operationele vertrouwenslaag. De architectuur van Nuts is fundamenteel opgebouwd rondom W3C Verifiable Credentials (VCs) en Decentralized Identifiers (DIDs) en sluit daarmee aan op de universele standaarden.
+
+Binnen PLUGIN is voor Nuts gekozen omdat het in de Nederlandse context reeds wordt gebruikt ([eOverdracht](https://nuts-foundation.gitbook.io/bolts/eoverdracht/leveranciersspecificatie), [KIK-V](https://kik-v-publicatieplatform.nl/documentatie/nuts-technischespecificaties/1.1.2/Documentatie/Inleiding)) en daarmee een bewezen track record heeft als betrouwbare en interoperabele oplossing voor gedecentraliseerde authenticatie, autorisatie en vertrouwensbeheer. Nuts heeft een vertaling gemaakt van de abstracte standaarden naar direct inzetbare, gestandaardiseerde communicatieprotocollen (vastgelegd in open RFC's) in combinatie met een gedistribueerd netwerk van Nuts nodes. Het Nuts model elimineert de noodzaak voor een centrale makelaar (brokerless), wat het risico op vendor lock-in en centrale single-points-of-failure minimaliseert. Hierdoor faciliteert Nuts niet alleen een schaalbare en privacyvriendelijke authenticatie- en autorisatiestroom, maar biedt het ook een pragmatische oplossing voor de dynamische vertrouwensrelaties tussen netwerkparticipanten.
+
+Wanneer in de toekomst nieuwe c.q. aanvullende protocollen beschikbaar zijn zal bekeken worden in hoeverre het Nuts framework aangepast moet worden om hieraan te voldoen danwel dat Nuts wordt vervangen door een ander component. Door Nuts op een modulaire manier te integreren in PLUGIN streven er ernaar om de toekomstische *technical debt* te minimaliseren.
